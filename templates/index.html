@@ -10,6 +10,8 @@
     <style>
         body {
             background-color: #f8f9fa;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
         .card {
             border-radius: 15px;
@@ -35,9 +37,16 @@
             background-color: #dc3545;
             color: white;
         }
-        #stockChart {
+        .chart-container {
+            position: relative;
             height: 400px;
             width: 100%;
+        }
+        .last-update {
+            font-size: 0.8em;
+            color: #666;
+            text-align: right;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -103,7 +112,10 @@
         <div class="card stock-card">
             <div class="card-body">
                 <h5 class="card-title">Stock Price Chart</h5>
-                <canvas id="stockChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="stockChart"></canvas>
+                </div>
+                <div class="last-update" id="lastUpdate"></div>
             </div>
         </div>
     </div>
@@ -113,6 +125,7 @@
         let currentSymbol = '';
         let currentPrice = 0;
         let chart = null;
+        let updateInterval = null;
 
         // Update portfolio information
         function updatePortfolio() {
@@ -245,15 +258,39 @@
             });
         }
 
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `Last updated: ${now.toLocaleTimeString()}`;
+        }
+
+        // Start auto-update
+        function startAutoUpdate() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            updateInterval = setInterval(() => {
+                if (currentSymbol) {
+                    lookupStock();
+                }
+                updatePortfolio();
+                updateLastUpdateTime();
+            }, 3000);  // Update every 3 seconds
+        }
+
         // Add event listeners
         document.getElementById('stockSymbol').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 lookupStock();
+                startAutoUpdate();
             }
         });
 
         // Initial portfolio update
         updatePortfolio();
+        updateLastUpdateTime();
     </script>
 </body>
 </html> 

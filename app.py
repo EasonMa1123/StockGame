@@ -3,21 +3,35 @@ import csv
 import json
 from datetime import datetime, timedelta
 import random
+import threading
+import time
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
+
+# Global stock data
+stock_data = {}
 
 def load_stock_data():
     with open('stock_data.csv', 'r') as file:
         reader = csv.DictReader(file)
         return {row['symbol']: float(row['price']) for row in reader}
 
+def update_stock_prices():
+    global stock_data
+    while True:
+        for symbol in stock_data:
+            # Update price with random walk
+            change = random.gauss(0.001, 0.01)  # Mean of 0.1% daily return, std dev of 1%
+            stock_data[symbol] *= (1 + change)
+            stock_data[symbol] = round(stock_data[symbol], 2)
+        time.sleep(3)  # Update every 3 seconds
+
 def generate_price_history(price, days=30):
     history = []
     current_price = price
     for _ in range(days):
-        # Simulate price changes with random walk
-        change = random.uniform(-0.02, 0.02)  # ±2% daily change
+        change = random.gauss(0.001, 0.01)
         current_price *= (1 + change)
         history.append(round(current_price, 2))
     return history
@@ -38,7 +52,6 @@ def index():
 @app.route('/get_stock_data/<symbol>')
 def get_stock_data(symbol):
     try:
-        stock_data = load_stock_data()
         if symbol not in stock_data:
             return jsonify({'success': False, 'error': 'Stock not found'})
         
@@ -65,7 +78,6 @@ def buy_stock():
     shares = int(data.get('shares'))
     
     try:
-        stock_data = load_stock_data()
         if symbol not in stock_data:
             return jsonify({'success': False, 'error': 'Stock not found'})
         
@@ -101,7 +113,6 @@ def sell_stock():
         if symbol not in session['portfolio']['stocks'] or session['portfolio']['stocks'][symbol] < shares:
             return jsonify({'success': False, 'error': 'Insufficient shares'})
         
-        stock_data = load_stock_data()
         if symbol not in stock_data:
             return jsonify({'success': False, 'error': 'Stock not found'})
         
@@ -129,4 +140,11 @@ def get_portfolio():
     return jsonify(session['portfolio'])
 
 if __name__ == '__main__':
+    # Initialize stock data
+    stock_data = load_stock_data()
+    
+    # Start price update thread
+    update_thread = threading.Thread(target=update_stock_prices, daemon=True)
+    update_thread.start()
+    
     app.run(debug=True) 
